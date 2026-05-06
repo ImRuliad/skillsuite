@@ -6,8 +6,8 @@ struct SkillSuiteApp: App {
 
     var body: some Scene {
         MenuBarExtra("SkillSuite", systemImage: "doc.text.magnifyingglass") {
-            Text("SkillSuite")
-                .frame(width: 700, height: 500)
+            PopoverRootView()
+                .environment(appModel)
         }
         .menuBarExtraStyle(.window)
     }

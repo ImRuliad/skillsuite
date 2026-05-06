@@ -25,7 +25,7 @@ final class AppModel {
 
     // MARK: - File Watching
 
-    /// Paths of files added since the last rescan — used to drive the new-file highlight animation.
+    /// Paths of files added since the last rescan — drives the new-file highlight animation.
     var recentlyAddedFilePaths: Set<String> = []
 
     // MARK: - Search
@@ -33,17 +33,18 @@ final class AppModel {
     var searchQuery: String = ""
     var matchingFileIDs: Set<String> = []
 
-    // MARK: - Services
+    // MARK: - Services (private)
 
     private let globalScanner = GlobalScannerService()
     private let codebaseScanner = CodebaseScannerService()
     private var index = SearchIndex()
+    private let watcher = FileWatcher()
 
-    // MARK: - UserDefaults Persistence
+    // MARK: - UserDefaults
 
     private let kCodebasePaths = "registeredCodebasePaths"
 
-    // MARK: - Initialisation
+    // MARK: - Init
 
     init() {
         loadPersistedCodebases()
@@ -51,7 +52,7 @@ final class AppModel {
 
     // MARK: - Scanning
 
-    /// Performs the initial scan on launch. Call once from the app entry point.
+    /// Performs the initial scan on app launch. Starts file watching after completion.
     func loadAll() async {
         isLoading = true
         async let global = globalScanner.scanAll()
@@ -61,26 +62,26 @@ final class AppModel {
         codebases = newCodebases
         rebuildIndex()
         isLoading = false
+        startWatching()
     }
 
-    /// Re-scans all paths (triggered by FileWatcher events).
-    ///
-    /// Detects newly added files for highlight animation.
-    /// Clears `selectedFile` if its path no longer exists after the rescan.
+    /// Re-scans all paths when `FileWatcher` fires. Detects new files for highlight animation.
     func rescanAndPublish() async {
         let existingPaths = allFilePaths()
         async let newGlobal = globalScanner.scanAll()
         async let newCodebases = codebaseScanner.scanAll(codebases)
         let (updatedGlobal, updatedCodebases) = await (newGlobal, newCodebases)
 
-        let newPaths = Set(updatedGlobal.values.flatMap { $0 }.map { $0.path }
-            + updatedCodebases.flatMap { $0.files }.map { $0.path })
+        let newPaths = Set(
+            updatedGlobal.values.flatMap { $0 }.map { $0.path } +
+            updatedCodebases.flatMap { $0.files }.map { $0.path }
+        )
         let added = newPaths.subtracting(existingPaths)
 
         globalFiles = updatedGlobal
         codebases = updatedCodebases
 
-        // Clear selection if selected file was deleted
+        // Clear selection if selected file was deleted from disk
         if let selected = selectedFile, !newPaths.contains(selected.path) {
             selectedFile = nil
         }
@@ -98,7 +99,6 @@ final class AppModel {
 
     // MARK: - Codebase Management
 
-    /// Opens a native folder picker and registers the selected folder.
     func presentFolderPicker() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -106,16 +106,15 @@ final class AppModel {
         panel.allowsMultipleSelection = false
         panel.prompt = "Add Codebase"
         panel.message = "Select a project folder to scan for AI instruction files"
-
         guard panel.runModal() == .OK, let url = panel.url else { return }
         addCodebase(url)
     }
 
     func addCodebase(_ url: URL) {
         guard !codebases.contains(where: { $0.url == url }) else { return }
-        let codebase = Codebase(url: url, files: [])
-        codebases.append(codebase)
+        codebases.append(Codebase(url: url, files: []))
         persistCodebases()
+        restartWatching()
         Task { @MainActor in
             let scanned = codebaseScanner.scan(codebase: url)
             if let idx = codebases.firstIndex(where: { $0.url == url }) {
@@ -128,6 +127,7 @@ final class AppModel {
     func removeCodebase(_ codebase: Codebase) {
         codebases.removeAll { $0.url == codebase.url }
         persistCodebases()
+        restartWatching()
         rebuildIndex()
     }
 
@@ -143,13 +143,32 @@ final class AppModel {
         matchingFileIDs = index.search(query: searchQuery)
     }
 
+    // MARK: - File Watching
+
+    private func startWatching() {
+        watcher.onChange = { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.rescanAndPublish()
+            }
+        }
+        watcher.start(paths: watchedPaths())
+    }
+
+    private func restartWatching() {
+        watcher.start(paths: watchedPaths()) // FileWatcher.start() calls stop() internally
+    }
+
+    func watchedPaths() -> [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let globalPaths = [".claude", ".copilot", ".codex", ".gemini"].map { "\(home)/\($0)" }
+        return globalPaths + codebases.map { $0.url.path }
+    }
+
     // MARK: - Persistence
 
     private func persistCodebases() {
-        UserDefaults.standard.set(
-            codebases.map { $0.url.path },
-            forKey: kCodebasePaths
-        )
+        UserDefaults.standard.set(codebases.map { $0.url.path }, forKey: kCodebasePaths)
     }
 
     private func loadPersistedCodebases() {
@@ -162,16 +181,10 @@ final class AppModel {
 
     // MARK: - Helpers
 
-    func watchedPaths() -> [String] {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let globalPaths = [".claude", ".copilot", ".codex", ".gemini"].map { "\(home)/\($0)" }
-        let localPaths = codebases.map { $0.url.path }
-        return globalPaths + localPaths
-    }
-
     private func allFilePaths() -> Set<String> {
-        let globalPaths = globalFiles.values.flatMap { $0 }.map { $0.path }
-        let codebasePaths = codebases.flatMap { $0.files }.map { $0.path }
-        return Set(globalPaths + codebasePaths)
+        Set(
+            globalFiles.values.flatMap { $0 }.map { $0.path } +
+            codebases.flatMap { $0.files }.map { $0.path }
+        )
     }
 }
