@@ -95,6 +95,63 @@ struct CodebaseScannerTests {
         #expect(c1.displayName == "path")
     }
 
+    // MARK: - PER-49 regression tests
+
+    @Test("collects .md file directly in .claude root (no commands/ or skills/ subdirs)")
+    func collectsFileInClaudeRoot() throws {
+        let root = try tmp()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let claude = root.appendingPathComponent(".claude")
+        try FileManager.default.createDirectory(at: claude, withIntermediateDirectories: true)
+        try "# settings".write(to: claude.appendingPathComponent("settings.md"), atomically: true, encoding: .utf8)
+        let files = scanner.scan(codebase: root)
+        #expect(files.count == 1)
+        #expect(files[0].name == "settings.md")
+        #expect(files[0].provider == .claude)
+    }
+
+    @Test("collects files from .claude/commands/ via root .claude scan (regression)")
+    func collectsClaudeCommandsViaRoot() throws {
+        let root = try tmp()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let commands = root.appendingPathComponent(".claude/commands")
+        try FileManager.default.createDirectory(at: commands, withIntermediateDirectories: true)
+        try "# deploy".write(to: commands.appendingPathComponent("deploy.md"), atomically: true, encoding: .utf8)
+        let files = scanner.scan(codebase: root)
+        let deployFiles = files.filter { $0.name == "deploy.md" }
+        #expect(deployFiles.count == 1)
+        #expect(deployFiles[0].provider == .claude)
+    }
+
+    @Test("file in .claude root deduplicates with CLAUDE.md at root when both present")
+    func deduplicatesClaudeRootAndRootMd() throws {
+        let root = try tmp()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let claude = root.appendingPathComponent(".claude")
+        try FileManager.default.createDirectory(at: claude, withIntermediateDirectories: true)
+        try "# inner".write(to: claude.appendingPathComponent("inner.md"), atomically: true, encoding: .utf8)
+        try "# root".write(to: root.appendingPathComponent("CLAUDE.md"), atomically: true, encoding: .utf8)
+        let files = scanner.scan(codebase: root)
+        // inner.md + CLAUDE.md at root — both claude, each appears exactly once
+        let claudeFiles = files.filter { $0.provider == .claude }
+        #expect(claudeFiles.count == 2)
+        let names = Set(claudeFiles.map { $0.name })
+        #expect(names == ["inner.md", "CLAUDE.md"])
+    }
+
+    @Test("collects .md files from .copilot/ root in a codebase")
+    func collectsCopilotRoot() throws {
+        let root = try tmp()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let copilot = root.appendingPathComponent(".copilot")
+        try FileManager.default.createDirectory(at: copilot, withIntermediateDirectories: true)
+        try "# instructions".write(to: copilot.appendingPathComponent("instructions.md"), atomically: true, encoding: .utf8)
+        let files = scanner.scan(codebase: root)
+        #expect(files.count == 1)
+        #expect(files[0].name == "instructions.md")
+        #expect(files[0].provider == .copilot)
+    }
+
     @Test("scanAll runs scans concurrently and returns updated codebases")
     func scanAllUpdatesFiles() async throws {
         let root1 = try tmp()

@@ -11,10 +11,10 @@ struct CodebaseScannerService: Sendable {
     /// Patterns keyed by provider, listing relative paths to scan within a codebase root.
     /// Each relative path may be a file or a directory — `collectTarget` handles both.
     private static let patterns: [(provider: AIProvider, relativePaths: [String])] = [
-        (.claude,  [".claude/commands", ".claude/skills", "CLAUDE.md"]),
-        (.copilot, [".github/copilot-instructions.md"]),
+        (.claude,  [".claude", "CLAUDE.md"]),
+        (.copilot, [".copilot", ".github/copilot-instructions.md"]),
         (.codex,   [".codex"]),
-        (.gemini,  [".gemini/agents", ".gemini"]),
+        (.gemini,  [".gemini"]),
     ]
 
     // MARK: - Public Interface
