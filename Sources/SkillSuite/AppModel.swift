@@ -119,15 +119,16 @@ final class AppModel {
     }
 
     func addCodebase(_ url: URL) {
-        guard !codebases.contains(where: { $0.url == url }) else { return }
-        codebases.append(Codebase(url: url, files: []))
+        let canonical = url.standardizedFileURL
+        guard !codebases.contains(where: { $0.url == canonical }) else { return }
+        codebases.append(Codebase(url: canonical, files: []))
         persistCodebases()
         restartWatching()
         Task { @MainActor in
-            let scanned = codebaseScanner.scan(codebase: url)
-            if let idx = codebases.firstIndex(where: { $0.url == url }) {
-                codebases[idx].files = scanned
-                rebuildIndex()
+            let scanned = self.codebaseScanner.scan(codebase: canonical)
+            if let idx = self.codebases.firstIndex(where: { $0.url == canonical }) {
+                self.codebases[idx].files = scanned
+                self.rebuildIndex()
             }
         }
     }
@@ -182,7 +183,7 @@ final class AppModel {
     private func loadPersistedCodebases() {
         let saved = UserDefaults.standard.stringArray(forKey: kCodebasePaths) ?? []
         codebases = saved
-            .compactMap { URL(fileURLWithPath: $0) }
+            .compactMap { URL(fileURLWithPath: $0).standardizedFileURL }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
             .map { Codebase(url: $0, files: []) }
     }
