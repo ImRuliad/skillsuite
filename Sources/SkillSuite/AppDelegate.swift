@@ -1,16 +1,17 @@
 import AppKit
 import SwiftUI
 
-/// Manages the NSStatusItem, NSPopover, and right-click context menu.
+/// Manages the NSStatusItem, panel window, and right-click context menu.
 ///
-/// Owning AppModel here (rather than in SkillSuiteApp) lets us share a single
-/// instance across the popover and the context menu actions without going through
-/// the SwiftUI environment from the scene level.
+/// Uses a borderless NSPanel rather than NSPopover so that the panel has no
+/// directional arrow and applies no extra material wrapping — matching the
+/// original MenuBarExtra .window appearance exactly.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem: NSStatusItem!
-    private var popover: NSPopover!
+    private var panel: NSPanel!
+    private var eventMonitor: Any?
     let appModel = AppModel()
 
     // MARK: - Launch
@@ -18,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         setupStatusItem()
-        setupPopover()
+        setupPanel()
     }
 
     // MARK: - Status Item
@@ -38,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if event.type == .rightMouseUp {
             showContextMenu()
         } else {
-            togglePopover()
+            togglePanel()
         }
     }
 
@@ -59,8 +60,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitItem.target = self
         menu.addItem(quitItem)
 
-        // Temporarily assign menu so NSStatusItem renders it, then clear to
-        // restore normal left-click → popover behaviour.
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
@@ -74,22 +73,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
-    // MARK: - Popover
+    // MARK: - Panel
 
-    private func setupPopover() {
-        popover = NSPopover()
-        popover.contentSize = NSSize(width: 700, height: 500)
-        popover.behavior = .transient
-        popover.contentViewController = NSHostingController(
+    private func setupPanel() {
+        panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: true
+        )
+        panel.level = .statusBar
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = false
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        panel.contentViewController = NSHostingController(
             rootView: PopoverRootView().environment(appModel)
         )
     }
 
-    private func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
-        } else if let button = statusItem.button {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    private func togglePanel() {
+        if panel.isVisible {
+            closePanel()
+        } else {
+            openPanel()
+        }
+    }
+
+    private func openPanel() {
+        guard let button = statusItem.button,
+              let buttonWindow = button.window else { return }
+
+        let buttonRect = button.convert(button.bounds, to: nil)
+        let screenRect = buttonWindow.convertToScreen(buttonRect)
+
+        let panelWidth: CGFloat = 700
+        let panelHeight: CGFloat = 500
+        let x = screenRect.midX - panelWidth / 2
+        let y = screenRect.minY - panelHeight
+
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
+        panel.makeKeyAndOrderFront(nil)
+
+        // Close when user clicks outside the panel
+        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.closePanel()
+        }
+    }
+
+    private func closePanel() {
+        panel.orderOut(nil)
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+            eventMonitor = nil
         }
     }
 }
