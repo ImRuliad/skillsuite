@@ -87,10 +87,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.hidesOnDeactivate = false
         panel.backgroundColor = .clear
         panel.isOpaque = false
+        panel.hasShadow = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        panel.contentViewController = NSHostingController(
+
+        let hostingController = NSHostingController(
             rootView: PopoverRootView().environment(appModel)
         )
+        // Clip the SwiftUI content to rounded corners matching native macOS panels.
+        // cornerRadius on the view layer (not the window) lets the window shadow
+        // render outside the clipping bounds as expected.
+        hostingController.view.wantsLayer = true
+        hostingController.view.layer?.cornerRadius = 12
+        hostingController.view.layer?.cornerCurve = .continuous
+        hostingController.view.layer?.masksToBounds = true
+        panel.contentViewController = hostingController
     }
 
     private func togglePanel() {
