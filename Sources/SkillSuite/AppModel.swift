@@ -23,6 +23,10 @@ final class AppModel {
     var selectedFile: SkillFile? = nil
     var isLoading = true
 
+    /// Set by AppDelegate so SwiftUI views can request the folder picker
+    /// without needing a direct reference to AppDelegate.
+    var presentFolderPicker: (() -> Void)?
+
     /// Session-scoped expand state for provider groups. Absent key = collapsed.
     /// Not persisted — resets to all-collapsed on every app launch.
     var providerExpanded: [AIProvider: Bool] = [:]
@@ -106,17 +110,6 @@ final class AppModel {
     }
 
     // MARK: - Codebase Management
-
-    func presentFolderPicker() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Add Codebase"
-        panel.message = "Select a project folder to scan for AI instruction files"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        addCodebase(url)
-    }
 
     func addCodebase(_ url: URL) {
         let canonical = url.standardizedFileURL
