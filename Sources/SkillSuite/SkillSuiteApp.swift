@@ -2,13 +2,11 @@ import SwiftUI
 
 @main
 struct SkillSuiteApp: App {
-    @State private var appModel = AppModel()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("SkillSuite", systemImage: "doc.text.magnifyingglass") {
-            PopoverRootView()
-                .environment(appModel)
-        }
-        .menuBarExtraStyle(.window)
+        // Minimal scene required by SwiftUI App protocol.
+        // All UI is managed by AppDelegate via NSStatusItem + NSPopover.
+        Settings { EmptyView() }
     }
 }
