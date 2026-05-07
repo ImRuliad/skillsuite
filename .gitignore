@@ -56,26 +56,11 @@ aws-credentials
 .aws/credentials
 
 # =============================================================================
-# CLAUDE CODE — local/personal settings only; commands and skills are committed
+# CLAUDE CODE — kept local, not committed to the repo
 # =============================================================================
 
-# Local settings override (may contain personal paths, tokens, or preferences)
-.claude/settings.local.json
-
-# Claude session data and caches — never commit
-.claude/cache/
-.claude/history*
-.claude/sessions/
-.claude/todos/
-.claude/tasks/
-.claude/plans/
-.claude/debug/
-.claude/stats*
-.claude/telemetry/
-.claude/paste-cache/
-.claude/shell-snapshots/
-.claude/file-history/
-.claude/mcp-needs-auth-cache.json
+CLAUDE.md
+.claude/
 
 # =============================================================================
 # OPERATING SYSTEM
@@ -269,15 +254,8 @@ dump.sql
 *.bz2
 
 # =============================================================================
-# WHAT IS EXPLICITLY COMMITTED IN THIS REPO
+# SWIFT / SPM
 # =============================================================================
-# To be clear about intent — the following are NOT ignored:
-#
-#   CLAUDE.md                        ← project agent instructions
-#   WORKFLOW.md                      ← workflow reference (kept as human doc)
-#   .gitignore                       ← this file
-#   .claude/commands/**              ← slash command definitions
-#   .claude/skills/**                ← skill files and supporting docs
-#   .claude/settings.json            ← project-level Claude settings (no secrets)
-#
-# =============================================================================
+
+.build/
+*.app
