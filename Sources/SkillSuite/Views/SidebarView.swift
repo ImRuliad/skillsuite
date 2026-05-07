@@ -57,7 +57,7 @@ struct SidebarView: View {
 
     private var addCodebaseButton: some View {
         Button {
-            appModel.presentFolderPicker()
+            appModel.presentFolderPicker?()
         } label: {
             Label("Add Codebase", systemImage: "plus.circle")
                 .font(.system(size: 11))

@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         setupStatusItem()
         setupPanel()
+        appModel.presentFolderPicker = { [weak self] in self?.addDirectory() }
     }
 
     // MARK: - Status Item
@@ -66,7 +67,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func addDirectory() {
-        appModel.presentFolderPicker()
+        closePanel()
+        NSApp.activate(ignoringOtherApps: true)
+
+        let openPanel = NSOpenPanel()
+        openPanel.canChooseFiles = false
+        openPanel.canChooseDirectories = true
+        openPanel.allowsMultipleSelection = false
+        openPanel.prompt = "Add Codebase"
+        openPanel.message = "Select a project folder to scan for AI instruction files"
+
+        guard openPanel.runModal() == .OK, let url = openPanel.url else { return }
+        appModel.addCodebase(url)
     }
 
     @objc private func quitApp() {
