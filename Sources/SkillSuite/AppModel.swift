@@ -23,6 +23,14 @@ final class AppModel {
     var selectedFile: SkillFile? = nil
     var isLoading = true
 
+    /// Session-scoped expand state for provider groups. Absent key = collapsed.
+    /// Not persisted — resets to all-collapsed on every app launch.
+    var providerExpanded: [AIProvider: Bool] = [:]
+
+    /// Session-scoped expand state for codebase groups, keyed by `url.path`. Absent key = collapsed.
+    /// Not persisted — resets to all-collapsed on every app launch.
+    var codebaseExpanded: [String: Bool] = [:]
+
     // MARK: - File Watching
 
     /// Paths of files added since the last rescan — drives the new-file highlight animation.

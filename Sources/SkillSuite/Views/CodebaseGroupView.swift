@@ -7,7 +7,13 @@ import SwiftUI
 struct CodebaseGroupView: View {
     let codebase: Codebase
     @Environment(AppModel.self) private var appModel
-    @State private var isExpanded = true
+
+    private var isExpandedBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.codebaseExpanded[codebase.url.path] ?? false },
+            set: { appModel.codebaseExpanded[codebase.url.path] = $0 }
+        )
+    }
 
     private var groupedFiles: [(AIProvider, [SkillFile])] {
         var byProvider: [AIProvider: [SkillFile]] = [:]
@@ -22,7 +28,7 @@ struct CodebaseGroupView: View {
     }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
+        DisclosureGroup(isExpanded: isExpandedBinding) {
             if groupedFiles.isEmpty && !appModel.searchQuery.isEmpty {
                 Text("0 results")
                     .font(.caption)

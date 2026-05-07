@@ -8,7 +8,13 @@ struct ProviderGroupView: View {
     let provider: AIProvider
     let files: [SkillFile]
     @Environment(AppModel.self) private var appModel
-    @State private var isExpanded = true
+
+    private var isExpandedBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.providerExpanded[provider] ?? false },
+            set: { appModel.providerExpanded[provider] = $0 }
+        )
+    }
 
     private var visibleFiles: [SkillFile] {
         guard !appModel.searchQuery.isEmpty else { return files }
@@ -16,7 +22,7 @@ struct ProviderGroupView: View {
     }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
+        DisclosureGroup(isExpanded: isExpandedBinding) {
             if visibleFiles.isEmpty && !appModel.searchQuery.isEmpty {
                 zeroResultsRow
             } else if files.isEmpty {
