@@ -152,6 +152,19 @@ struct CodebaseScannerTests {
         #expect(files[0].provider == .copilot)
     }
 
+    @Test("collects .md files inside hidden subdirectory within .claude")
+    func collectsMdInHiddenSubdirOfClaude() throws {
+        let root = try tmp()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let hidden = root.appendingPathComponent(".claude/.hidden-subdir")
+        try FileManager.default.createDirectory(at: hidden, withIntermediateDirectories: true)
+        try "# hidden".write(to: hidden.appendingPathComponent("hidden.md"), atomically: true, encoding: .utf8)
+        let files = scanner.scan(codebase: root)
+        #expect(files.count == 1)
+        #expect(files[0].name == "hidden.md")
+        #expect(files[0].provider == .claude)
+    }
+
     @Test("scanAll runs scans concurrently and returns updated codebases")
     func scanAllUpdatesFiles() async throws {
         let root1 = try tmp()

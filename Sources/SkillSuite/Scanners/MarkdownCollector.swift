@@ -23,7 +23,7 @@ enum MarkdownCollector {
         guard let enumerator = FileManager.default.enumerator(
             at: directory,
             includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
+            options: []
         ) else { return [] }
 
         var files: [SkillFile] = []
