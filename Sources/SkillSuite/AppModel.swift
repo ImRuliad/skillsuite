@@ -35,6 +35,10 @@ final class AppModel {
     /// Not persisted — resets to all-collapsed on every app launch.
     var codebaseExpanded: [String: Bool] = [:]
 
+    /// Session-scoped expand state for subdirectory groups, keyed by absolute parent path.
+    /// Not persisted — resets to all-collapsed on every app launch.
+    var subdirectoryExpanded: [String: Bool] = [:]
+
     // MARK: - File Watching
 
     /// Paths of files added since the last rescan — drives the new-file highlight animation.
