@@ -23,10 +23,12 @@ struct SkillFile: Identifiable, Hashable, Sendable {
     var id: String { path }
 
     let provider: AIProvider
-    let name: String      // filename with extension, e.g. "CLAUDE.md"
-    let path: String      // full absolute path
-    let contents: String  // raw UTF-8 string
-    let isGlobal: Bool    // true = global provider folder; false = user-added codebase
+    let name: String         // filename with extension, e.g. "CLAUDE.md"
+    let path: String         // full absolute path
+    let contents: String     // raw UTF-8 string
+    let isGlobal: Bool       // true = global provider folder; false = user-added codebase
+    var subdirectory: String = "" // relative path between provider root and file, excl. filename
+                                  // "" = file is directly at provider root
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(path)

@@ -31,7 +31,7 @@ enum MarkdownCollector {
             guard isMarkdownFile(url),
                   let contents = try? String(contentsOf: url, encoding: .utf8)
             else { continue }
-            files.append(makeSkillFile(url: url, contents: contents, provider: provider, isGlobal: isGlobal))
+            files.append(makeSkillFile(url: url, root: directory, contents: contents, provider: provider, isGlobal: isGlobal))
         }
         return files
     }
@@ -48,14 +48,16 @@ enum MarkdownCollector {
               FileManager.default.fileExists(atPath: url.path),
               let contents = try? String(contentsOf: url, encoding: .utf8)
         else { return [] }
-        return [makeSkillFile(url: url, contents: contents, provider: provider, isGlobal: isGlobal)]
+        return [makeSkillFile(url: url, root: nil, contents: contents, provider: provider, isGlobal: isGlobal)]
     }
 
     /// Collects `.md` files from `directory` (non-recursive) whose filename ends with `suffix`.
     ///
+    /// `root` is the provider root used to compute the `subdirectory` field on each `SkillFile`.
     /// Returns `[]` if the directory does not exist or is not accessible.
     static func collectDirectory(
         _ directory: URL,
+        root: URL,
         matchingSuffix suffix: String,
         provider: AIProvider,
         isGlobal: Bool
@@ -71,7 +73,7 @@ enum MarkdownCollector {
             .filter { $0.lastPathComponent.hasSuffix(suffix) }
             .compactMap { url -> SkillFile? in
                 guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-                return makeSkillFile(url: url, contents: contents, provider: provider, isGlobal: isGlobal)
+                return makeSkillFile(url: url, root: root, contents: contents, provider: provider, isGlobal: isGlobal)
             }
     }
 
@@ -81,13 +83,40 @@ enum MarkdownCollector {
         url.pathExtension.lowercased() == "md"
     }
 
-    private static func makeSkillFile(url: URL, contents: String, provider: AIProvider, isGlobal: Bool) -> SkillFile {
-        SkillFile(
+    private static func makeSkillFile(
+        url: URL,
+        root: URL?,
+        contents: String,
+        provider: AIProvider,
+        isGlobal: Bool
+    ) -> SkillFile {
+        let subdirectory: String
+        if let root {
+            // Resolve symlinks so /var/folders/... and /private/var/folders/... compare equal
+            let resolvedRoot = root.resolvingSymlinksInPath()
+            let resolvedURL  = url.resolvingSymlinksInPath()
+            let rootPath = resolvedRoot.path.hasSuffix("/") ? resolvedRoot.path : resolvedRoot.path + "/"
+            if resolvedURL.path.hasPrefix(rootPath) {
+                // Strip root prefix and filename to get the containing subdirectory
+                let relative = String(resolvedURL.path.dropFirst(rootPath.count))
+                // relative is e.g. "subdir/file.md" or "file.md"
+                let components = relative.split(separator: "/", omittingEmptySubsequences: true)
+                // Drop the last component (filename); remainder is the subdirectory path
+                let dirComponents = components.dropLast()
+                subdirectory = dirComponents.joined(separator: "/")
+            } else {
+                subdirectory = ""
+            }
+        } else {
+            subdirectory = ""
+        }
+        return SkillFile(
             provider: provider,
             name: url.lastPathComponent,
             path: url.path,
             contents: contents,
-            isGlobal: isGlobal
+            isGlobal: isGlobal,
+            subdirectory: subdirectory
         )
     }
 }

@@ -36,7 +36,7 @@ struct CopilotScannerTests {
         try "# B".write(to: root.appendingPathComponent("b.instructions.md"), atomically: true, encoding: .utf8)
         try "# Skip".write(to: root.appendingPathComponent("skip.md"), atomically: true, encoding: .utf8)
 
-        let files = MarkdownCollector.collectDirectory(root, matchingSuffix: ".instructions.md", provider: .copilot, isGlobal: true)
+        let files = MarkdownCollector.collectDirectory(root, root: root, matchingSuffix: ".instructions.md", provider: .copilot, isGlobal: true)
         #expect(files.count == 2)
         #expect(!files.contains(where: { $0.name == "skip.md" }))
     }
@@ -44,6 +44,6 @@ struct CopilotScannerTests {
     @Test("collectDirectory returns empty for missing directory")
     func missingDirectory() {
         let missing = URL(fileURLWithPath: "/tmp/no-such-dir-\(UUID().uuidString)")
-        #expect(MarkdownCollector.collectDirectory(missing, matchingSuffix: ".instructions.md", provider: .copilot, isGlobal: true).isEmpty)
+        #expect(MarkdownCollector.collectDirectory(missing, root: missing, matchingSuffix: ".instructions.md", provider: .copilot, isGlobal: true).isEmpty)
     }
 }

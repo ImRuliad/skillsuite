@@ -20,6 +20,7 @@ struct CopilotScanner: ProviderScanner {
         )
         let additional = MarkdownCollector.collectDirectory(
             base.appendingPathComponent("instructions"),
+            root: base,
             matchingSuffix: ".instructions.md",
             provider: .copilot,
             isGlobal: true
