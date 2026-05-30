@@ -23,13 +23,24 @@ struct ProviderGroupView: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: isExpandedBinding) {
-            if visibleFiles.isEmpty && !appModel.searchQuery.isEmpty {
-                zeroResultsRow
-            } else if files.isEmpty {
+            if files.isEmpty {
                 noFilesRow
+            } else if visibleFiles.isEmpty && !appModel.searchQuery.isEmpty {
+                zeroResultsRow
             } else {
-                ForEach(visibleFiles) { file in
+                let rootFiles = visibleFiles.filter { $0.subdirectory.isEmpty }
+                let allGroups = SubdirectoryGroup.groups(from: files)
+                let visibleGroups = appModel.searchQuery.isEmpty
+                    ? allGroups
+                    : allGroups.filter { group in
+                        group.files.contains { appModel.matchingFileIDs.contains($0.id) }
+                    }
+
+                ForEach(rootFiles) { file in
                     FileRowView(file: file)
+                }
+                ForEach(visibleGroups) { group in
+                    SubdirectoryGroupView(group: group)
                 }
             }
         } label: {

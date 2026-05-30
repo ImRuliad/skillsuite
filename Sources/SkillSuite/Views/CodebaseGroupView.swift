@@ -58,7 +58,7 @@ struct CodebaseGroupView: View {
             }
             .padding(.vertical, 2)
         }
-        .disclosureGroupStyle(SidebarCodebaseGroupStyle())
+        .disclosureGroupStyle(SidebarDisclosureGroupStyle())
         .contextMenu {
             Button(role: .destructive) {
                 appModel.removeCodebase(codebase)
@@ -69,44 +69,26 @@ struct CodebaseGroupView: View {
     }
 
     private func providerSubGroup(provider: AIProvider, files: [SkillFile]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let rootFiles = files.filter { $0.subdirectory.isEmpty }
+        let allGroups = SubdirectoryGroup.groups(from: codebase.files.filter { $0.provider == provider })
+        let visibleGroups = appModel.searchQuery.isEmpty
+            ? allGroups
+            : allGroups.filter { group in
+                group.files.contains { appModel.matchingFileIDs.contains($0.id) }
+            }
+
+        return VStack(alignment: .leading, spacing: 0) {
             Text(provider.rawValue.uppercased())
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.tertiary)
                 .padding(.leading, 20)
                 .padding(.top, 4)
-            ForEach(files) { file in
+            ForEach(rootFiles) { file in
                 FileRowView(file: file)
                     .padding(.leading, 8)
             }
-        }
-    }
-}
-
-private struct SidebarCodebaseGroupStyle: DisclosureGroupStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    configuration.isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
-                        .animation(.easeInOut(duration: 0.15), value: configuration.isExpanded)
-                        .foregroundStyle(.tertiary)
-                    configuration.label
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-
-            if configuration.isExpanded {
-                configuration.content
+            ForEach(visibleGroups) { group in
+                SubdirectoryGroupView(group: group)
                     .padding(.leading, 8)
             }
         }
