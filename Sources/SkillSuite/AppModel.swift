@@ -71,7 +71,7 @@ final class AppModel {
         async let codebaseResults = codebaseScanner.scanAll(codebases)
         let (newGlobal, newCodebases) = await (global, codebaseResults)
         globalFiles = newGlobal
-        codebases = newCodebases
+        mergeCodebaseScanResults(newCodebases)
         rebuildIndex()
         isLoading = false
         startWatching()
@@ -91,7 +91,7 @@ final class AppModel {
         let added = newPaths.subtracting(existingPaths)
 
         globalFiles = updatedGlobal
-        codebases = updatedCodebases
+        mergeCodebaseScanResults(updatedCodebases)
 
         // Clear selection if selected file was deleted from disk
         if let selected = selectedFile, !newPaths.contains(selected.path) {
@@ -122,6 +122,22 @@ final class AppModel {
             if let idx = self.codebases.firstIndex(where: { $0.url == canonical }) {
                 self.codebases[idx].files = scanned
                 self.rebuildIndex()
+            }
+        }
+    }
+
+    /// Merges scan results from a background scan into `codebases` without
+    /// discarding entries that were added while the scan was in flight.
+    ///
+    /// A background scan captures a snapshot of `codebases` at start time.
+    /// By the time results arrive, `addCodebase()` may have appended new entries.
+    /// Replacing `codebases` wholesale would delete those entries. This method
+    /// only updates the `.files` of entries that appear in `scanned`; any entry
+    /// in `codebases` that is absent from `scanned` is left untouched.
+    func mergeCodebaseScanResults(_ scanned: [Codebase]) {
+        for updated in scanned {
+            if let idx = codebases.firstIndex(where: { $0.url == updated.url }) {
+                codebases[idx].files = updated.files
             }
         }
     }
