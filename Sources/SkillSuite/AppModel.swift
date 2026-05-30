@@ -121,6 +121,9 @@ final class AppModel {
             let scanned = self.codebaseScanner.scan(codebase: canonical)
             if let idx = self.codebases.firstIndex(where: { $0.url == canonical }) {
                 self.codebases[idx].files = scanned
+                if !scanned.isEmpty {
+                    self.codebaseExpanded[canonical.path] = true
+                }
                 self.rebuildIndex()
             }
         }

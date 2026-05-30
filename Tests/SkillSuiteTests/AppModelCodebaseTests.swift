@@ -109,6 +109,31 @@ struct AppModelCodebaseTests {
         #expect(!model.codebases[0].files.isEmpty,
                 "scan results should be assigned after addCodebase")
         #expect(model.codebases[0].files[0].name == "CLAUDE.md")
+        #expect(model.codebaseExpanded[root.path] == true,
+                "codebase with files should be auto-expanded so user can see them")
+    }
+
+    @Test("addCodebase with .claude/ subdirectory assigns scan results for files inside it")
+    func addCodebaseWithClaudeSubdirAssignsScanResults() async throws {
+        let root = try tmp()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let claudeDir = root.appendingPathComponent(".claude")
+        try FileManager.default.createDirectory(at: claudeDir, withIntermediateDirectories: true)
+        try "# Project instructions".write(
+            to: claudeDir.appendingPathComponent("CLAUDE.md"),
+            atomically: true, encoding: .utf8
+        )
+        let model = freshModel()
+
+        model.addCodebase(root)
+
+        await Task.yield()
+        await Task.yield()
+
+        #expect(model.codebases.count == 1)
+        #expect(!model.codebases[0].files.isEmpty,
+                "files inside .claude/ subdirectory should be found by addCodebase")
+        #expect(model.codebases[0].files[0].name == "CLAUDE.md")
     }
 
     @Test("addCodebase with no AI files shows codebase entry with empty files — no crash")
