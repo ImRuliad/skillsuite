@@ -23,13 +23,24 @@ struct ProviderGroupView: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: isExpandedBinding) {
-            if visibleFiles.isEmpty && !appModel.searchQuery.isEmpty {
-                zeroResultsRow
-            } else if files.isEmpty {
+            if files.isEmpty {
                 noFilesRow
+            } else if visibleFiles.isEmpty && !appModel.searchQuery.isEmpty {
+                zeroResultsRow
             } else {
-                ForEach(visibleFiles) { file in
+                let rootFiles = visibleFiles.filter { $0.subdirectory.isEmpty }
+                let allGroups = SubdirectoryGroup.groups(from: files)
+                let visibleGroups = appModel.searchQuery.isEmpty
+                    ? allGroups
+                    : allGroups.filter { group in
+                        group.files.contains { appModel.matchingFileIDs.contains($0.id) }
+                    }
+
+                ForEach(rootFiles) { file in
                     FileRowView(file: file)
+                }
+                ForEach(visibleGroups) { group in
+                    SubdirectoryGroupView(group: group)
                 }
             }
         } label: {
@@ -73,38 +84,6 @@ struct ProviderGroupView: View {
         case .copilot: return "airplane"
         case .codex:   return "chevron.left.forwardslash.chevron.right"
         case .gemini:  return "diamond"
-        }
-    }
-}
-
-// MARK: - Custom Disclosure Style
-
-private struct SidebarDisclosureGroupStyle: DisclosureGroupStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    configuration.isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
-                        .animation(.easeInOut(duration: 0.15), value: configuration.isExpanded)
-                        .foregroundStyle(.tertiary)
-                    configuration.label
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-
-            if configuration.isExpanded {
-                configuration.content
-                    .padding(.leading, 8)
-            }
         }
     }
 }

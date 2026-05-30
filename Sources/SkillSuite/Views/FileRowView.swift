@@ -19,19 +19,10 @@ struct FileRowView: View {
                 Image(systemName: "doc.text")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(file.name)
-                        .font(.system(size: 12))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if !file.subdirectory.isEmpty {
-                        Text(file.subdirectory)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.head)
-                    }
-                }
+                Text(file.name)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 Spacer()
             }
             .padding(.vertical, 3)
