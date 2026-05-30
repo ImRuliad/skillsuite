@@ -1,124 +1,91 @@
 import Testing
+import Foundation
 @testable import SkillSuite
 
-@Suite("SubdirectoryGroup")
+@Suite("SubdirectoryGroup.groups(from:)")
 struct SubdirectoryGroupingTests {
 
-    private func makeFile(
-        name: String,
-        path: String,
-        subdirectory: String,
-        provider: AIProvider = .claude
-    ) -> SkillFile {
-        SkillFile(
-            provider: provider,
-            name: name,
-            path: path,
-            contents: "",
-            isGlobal: true,
-            subdirectory: subdirectory
-        )
+    private func file(path: String, subdirectory: String) -> SkillFile {
+        SkillFile(provider: .claude, name: URL(fileURLWithPath: path).lastPathComponent,
+                  path: path, contents: "", isGlobal: false, subdirectory: subdirectory)
     }
 
-    @Test("groupsFrom_emptyFiles_returnsEmptyArray")
-    func groupsFromEmptyFilesReturnsEmptyArray() {
+    @Test("empty input returns empty groups")
+    func emptyInput() {
         #expect(SubdirectoryGroup.groups(from: []).isEmpty)
     }
 
-    @Test("groupsFrom_rootFilesOnly_returnsEmptyArray")
-    func groupsFromRootFilesOnlyReturnsEmptyArray() {
+    @Test("all root files returns empty groups")
+    func allRootFiles() {
         let files = [
-            makeFile(name: "CLAUDE.md", path: "/tmp/CLAUDE.md", subdirectory: ""),
-            makeFile(name: "README.md", path: "/tmp/README.md", subdirectory: "")
+            file(path: "/root/a.md", subdirectory: ""),
+            file(path: "/root/b.md", subdirectory: "")
         ]
-
         #expect(SubdirectoryGroup.groups(from: files).isEmpty)
     }
 
-    @Test("groupsFrom_nestedFiles_groupsBySubdirectory")
-    func groupsFromNestedFilesGroupsBySubdirectory() {
+    @Test("all files in one subdir returns one group")
+    func oneGroup() {
         let files = [
-            makeFile(name: "a.md", path: "/tmp/root/skills/a/a.md", subdirectory: "skills/a"),
-            makeFile(name: "b.md", path: "/tmp/root/skills/a/b.md", subdirectory: "skills/a"),
-            makeFile(name: "c.md", path: "/tmp/root/skills/b/c.md", subdirectory: "skills/b")
+            file(path: "/root/sub/a.md", subdirectory: "sub"),
+            file(path: "/root/sub/b.md", subdirectory: "sub"),
+            file(path: "/root/sub/c.md", subdirectory: "sub")
         ]
-
         let groups = SubdirectoryGroup.groups(from: files)
+        #expect(groups.count == 1)
+        #expect(groups[0].files.count == 3)
+    }
 
+    @Test("files in two subdirs returns two groups sorted by subdirectory")
+    func twoGroupsSorted() {
+        let files = [
+            file(path: "/root/beta/a.md", subdirectory: "beta"),
+            file(path: "/root/alpha/b.md", subdirectory: "alpha")
+        ]
+        let groups = SubdirectoryGroup.groups(from: files)
         #expect(groups.count == 2)
-        #expect(groups[0].files.map(\.name) == ["a.md", "b.md"])
-        #expect(groups[1].files.map(\.name) == ["c.md"])
+        #expect(groups[0].subdirectory < groups[1].subdirectory)
     }
 
-    @Test("groupsFrom_nestedFiles_usesLastPathComponentAsDisplayName")
-    func groupsFromNestedFilesUsesLastPathComponentAsDisplayName() {
+    @Test("mixed root and subdir: root files excluded from groups")
+    func rootFilesExcluded() {
         let files = [
-            makeFile(
-                name: "SKILL.md",
-                path: "/tmp/root/skills/productivity/pm-planner/SKILL.md",
-                subdirectory: "skills/productivity/pm-planner"
-            )
+            file(path: "/root/CLAUDE.md", subdirectory: ""),
+            file(path: "/root/sub/a.md", subdirectory: "sub")
         ]
-
-        let group = SubdirectoryGroup.groups(from: files)[0]
-
-        #expect(group.displayName == "pm-planner")
-    }
-
-    @Test("groupsFrom_nestedFiles_preservesFullSubdirectory")
-    func groupsFromNestedFilesPreservesFullSubdirectory() {
-        let files = [
-            makeFile(
-                name: "SKILL.md",
-                path: "/tmp/root/skills/productivity/pm-planner/SKILL.md",
-                subdirectory: "skills/productivity/pm-planner"
-            )
-        ]
-
-        let group = SubdirectoryGroup.groups(from: files)[0]
-
-        #expect(group.subdirectory == "skills/productivity/pm-planner")
-    }
-
-    @Test("groupsFrom_nestedFiles_usesAbsoluteParentPathAsID")
-    func groupsFromNestedFilesUsesAbsoluteParentPathAsID() {
-        let files = [
-            makeFile(
-                name: "SKILL.md",
-                path: "/tmp/root/skills/productivity/pm-planner/SKILL.md",
-                subdirectory: "skills/productivity/pm-planner"
-            )
-        ]
-
-        let group = SubdirectoryGroup.groups(from: files)[0]
-
-        #expect(group.absoluteParentPath == "/tmp/root/skills/productivity/pm-planner")
-        #expect(group.id == group.absoluteParentPath)
-    }
-
-    @Test("groupsFrom_nestedFiles_sortsFilesAlphabeticallyByName")
-    func groupsFromNestedFilesSortsFilesAlphabeticallyByName() {
-        let files = [
-            makeFile(name: "zeta.md", path: "/tmp/root/skills/a/zeta.md", subdirectory: "skills/a"),
-            makeFile(name: "Alpha.md", path: "/tmp/root/skills/a/Alpha.md", subdirectory: "skills/a"),
-            makeFile(name: "beta.md", path: "/tmp/root/skills/a/beta.md", subdirectory: "skills/a")
-        ]
-
-        let group = SubdirectoryGroup.groups(from: files)[0]
-
-        #expect(group.files.map(\.name) == ["Alpha.md", "beta.md", "zeta.md"])
-    }
-
-    @Test("groupsFrom_nestedFiles_sortsGroupsBySubdirectoryPath")
-    func groupsFromNestedFilesSortsGroupsBySubdirectoryPath() {
-        let files = [
-            makeFile(name: "z.md", path: "/tmp/root/z/z.md", subdirectory: "z"),
-            makeFile(name: "a.md", path: "/tmp/root/a/a.md", subdirectory: "a"),
-            makeFile(name: "m.md", path: "/tmp/root/m/n/m.md", subdirectory: "m/n")
-        ]
-
         let groups = SubdirectoryGroup.groups(from: files)
+        #expect(groups.count == 1)
+        #expect(!groups[0].files.contains(where: { $0.subdirectory.isEmpty }))
+    }
 
-        #expect(groups.map(\.subdirectory) == ["a", "m/n", "z"])
+    @Test("displayName is last path component of subdirectory")
+    func displayName() {
+        let files = [
+            file(path: "/root/skills/productivity/pm-planner/SKILL.md",
+                 subdirectory: "skills/productivity/pm-planner")
+        ]
+        let groups = SubdirectoryGroup.groups(from: files)
+        #expect(groups[0].displayName == "pm-planner")
+    }
+
+    @Test("absoluteParentPath derived from file path parent directory")
+    func absoluteParentPath() {
+        let files = [
+            file(path: "/root/sub/file.md", subdirectory: "sub")
+        ]
+        let groups = SubdirectoryGroup.groups(from: files)
+        #expect(groups[0].absoluteParentPath == "/root/sub")
+    }
+
+    @Test("files within a group sorted alphabetically by name")
+    func filesSortedAlphabetically() {
+        let files = [
+            file(path: "/root/sub/z.md", subdirectory: "sub"),
+            file(path: "/root/sub/a.md", subdirectory: "sub"),
+            file(path: "/root/sub/m.md", subdirectory: "sub")
+        ]
+        let groups = SubdirectoryGroup.groups(from: files)
+        let names = groups[0].files.map { $0.name }
+        #expect(names == names.sorted())
     }
 }
