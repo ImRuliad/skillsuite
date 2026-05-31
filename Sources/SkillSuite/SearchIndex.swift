@@ -1,5 +1,10 @@
 import Foundation
 
+struct SearchResult: Sendable {
+    let fileID: String
+    let score: Int
+}
+
 /// In-memory full-text index over all discovered `SkillFile`s.
 ///
 /// Searches both filename and file contents, case-insensitively.
@@ -10,8 +15,9 @@ struct SearchIndex: Sendable {
     // MARK: - Internal State
 
     private struct Entry: Sendable {
-        let fileID: String          // SkillFile.id (== path)
-        let searchable: String      // lowercased name + " " + lowercased contents
+        let fileID: String              // SkillFile.id (== path)
+        let nameLowercased: String
+        let contentsLowercased: String
     }
 
     private var entries: [Entry] = []
@@ -24,20 +30,34 @@ struct SearchIndex: Sendable {
         entries = files.map { file in
             Entry(
                 fileID: file.id,
-                searchable: (file.name + " " + file.contents).lowercased()
+                nameLowercased: file.name.lowercased(),
+                contentsLowercased: file.contents.lowercased()
             )
         }
     }
 
-    /// Returns the set of file IDs (paths) that match `query`.
+    /// Returns scored file IDs (paths) that match `query`.
     ///
-    /// An empty query returns all file IDs (no filtering).
+    /// An empty query returns all file IDs with score 0 (no filtering).
     /// O(n) scan — acceptable for a sub-1MB corpus.
-    func search(query: String) -> Set<String> {
+    func search(query: String) -> [SearchResult] {
         if query.isEmpty {
-            return Set(entries.map { $0.fileID })
+            return entries.map { SearchResult(fileID: $0.fileID, score: 0) }
         }
         let lowercased = query.lowercased()
-        return Set(entries.filter { $0.searchable.contains(lowercased) }.map { $0.fileID })
+        return entries.compactMap { entry in
+            let nameMatch = entry.nameLowercased.contains(lowercased) ? 10 : 0
+            let contentMatch = entry.contentsLowercased.contains(lowercased) ? 1 : 0
+            let score = nameMatch + contentMatch
+
+            guard score > 0 else { return nil }
+            return SearchResult(fileID: entry.fileID, score: score)
+        }
+        .sorted { lhs, rhs in
+            if lhs.score == rhs.score {
+                return lhs.fileID < rhs.fileID
+            }
+            return lhs.score > rhs.score
+        }
     }
 }

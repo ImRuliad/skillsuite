@@ -165,7 +165,7 @@ final class AppModel {
     }
 
     func updateMatches() {
-        matchingFileIDs = index.search(query: searchQuery)
+        matchingFileIDs = Set(index.search(query: searchQuery).map { $0.fileID })
     }
 
     // MARK: - File Watching
