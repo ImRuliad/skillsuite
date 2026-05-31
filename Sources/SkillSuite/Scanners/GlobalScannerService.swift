@@ -9,12 +9,20 @@ actor GlobalScannerService {
 
     // MARK: - Private State
 
-    private let scanners: [any ProviderScanner] = [
-        ClaudeScanner(),
-        CopilotScanner(),
-        CodexScanner(),
-        GeminiScanner()
-    ]
+    private let scanners: [any ProviderScanner]
+
+    init() {
+        self.scanners = [
+            ClaudeScanner(),
+            CopilotScanner(),
+            CodexScanner(),
+            GeminiScanner()
+        ]
+    }
+
+    init(scanners: [any ProviderScanner]) {
+        self.scanners = scanners
+    }
 
     // MARK: - Public Interface
 
