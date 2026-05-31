@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import AppKit
+import SwiftUI
 
 /// Central state container for the SkillSuite app.
 ///
@@ -27,17 +28,9 @@ final class AppModel {
     /// without needing a direct reference to AppDelegate.
     var presentFolderPicker: (() -> Void)?
 
-    /// Session-scoped expand state for provider groups. Absent key = collapsed.
+    /// Session-scoped expand state. Absent key = collapsed.
     /// Not persisted — resets to all-collapsed on every app launch.
-    var providerExpanded: [AIProvider: Bool] = [:]
-
-    /// Session-scoped expand state for codebase groups, keyed by `url.path`. Absent key = collapsed.
-    /// Not persisted — resets to all-collapsed on every app launch.
-    var codebaseExpanded: [String: Bool] = [:]
-
-    /// Session-scoped expand state for subdirectory groups, keyed by absolute parent path.
-    /// Not persisted — resets to all-collapsed on every app launch.
-    var subdirectoryExpanded: [String: Bool] = [:]
+    var expandState = ExpandStateModel()
 
     // MARK: - File Watching
 
@@ -126,7 +119,7 @@ final class AppModel {
             if let idx = self.codebases.firstIndex(where: { $0.url == canonical }) {
                 self.codebases[idx].files = scanned
                 if !scanned.isEmpty {
-                    self.codebaseExpanded[canonical.path] = true
+                    self.expandState.codebaseExpanded[canonical.path] = true
                 }
                 self.rebuildIndex()
             }
@@ -166,6 +159,51 @@ final class AppModel {
 
     func updateMatches() {
         matchingFileIDs = index.search(query: searchQuery)
+    }
+
+    func providerBinding(for provider: AIProvider, hasMatch: Bool) -> Binding<Bool> {
+        Binding(
+            get: {
+                if !self.searchQuery.isEmpty {
+                    return hasMatch
+                }
+                return self.expandState.providerExpanded[provider] ?? false
+            },
+            set: { isExpanded in
+                guard self.searchQuery.isEmpty else { return }
+                self.expandState.providerExpanded[provider] = isExpanded
+            }
+        )
+    }
+
+    func codebaseBinding(for path: String, hasMatch: Bool) -> Binding<Bool> {
+        Binding(
+            get: {
+                if !self.searchQuery.isEmpty {
+                    return hasMatch
+                }
+                return self.expandState.codebaseExpanded[path] ?? false
+            },
+            set: { isExpanded in
+                guard self.searchQuery.isEmpty else { return }
+                self.expandState.codebaseExpanded[path] = isExpanded
+            }
+        )
+    }
+
+    func subdirectoryBinding(for path: String, hasMatch: Bool) -> Binding<Bool> {
+        Binding(
+            get: {
+                if !self.searchQuery.isEmpty {
+                    return hasMatch
+                }
+                return self.expandState.subdirectoryExpanded[path] ?? false
+            },
+            set: { isExpanded in
+                guard self.searchQuery.isEmpty else { return }
+                self.expandState.subdirectoryExpanded[path] = isExpanded
+            }
+        )
     }
 
     // MARK: - File Watching

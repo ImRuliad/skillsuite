@@ -109,7 +109,7 @@ struct AppModelCodebaseTests {
         #expect(!model.codebases[0].files.isEmpty,
                 "scan results should be assigned after addCodebase")
         #expect(model.codebases[0].files[0].name == "CLAUDE.md")
-        #expect(model.codebaseExpanded[root.path] == true,
+        #expect(model.expandState.codebaseExpanded[root.path] == true,
                 "codebase with files should be auto-expanded so user can see them")
     }
 
