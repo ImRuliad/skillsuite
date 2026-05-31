@@ -8,6 +8,9 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 0) {
             SearchBar()
             Divider().padding(.top, 6)
+            if !appModel.scanWarnings.isEmpty {
+                scanWarningBanner
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     globalSection
@@ -66,6 +69,30 @@ struct SidebarView: View {
                 .padding(.vertical, 6)
         }
         .buttonStyle(.plain)
+    }
+
+    private var scanWarningBanner: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(appModel.scanWarnings.joined(separator: "\n"))
+                .font(.system(size: 10))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 4)
+
+            Button {
+                appModel.scanWarnings = []
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Dismiss scan warning")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.orange.opacity(0.12))
     }
 
     private func sectionHeader(_ title: String) -> some View {
