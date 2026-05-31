@@ -9,28 +9,14 @@ struct CodebaseGroupView: View {
     @Environment(AppModel.self) private var appModel
 
     private var isExpandedBinding: Binding<Bool> {
-        appModel.codebaseBinding(for: codebase.url.path, hasMatch: hasSearchMatch)
-    }
-
-    private var hasSearchMatch: Bool {
-        codebase.files.contains { appModel.matchingFileIDs.contains($0.id) }
-    }
-
-    private var groupedFiles: [(AIProvider, [SkillFile])] {
-        var byProvider: [AIProvider: [SkillFile]] = [:]
-        let files: [SkillFile]
-        if appModel.searchQuery.isEmpty {
-            files = codebase.files
-        } else {
-            files = codebase.files.filter { appModel.matchingFileIDs.contains($0.id) }
-        }
-        for file in files { byProvider[file.provider, default: []].append(file) }
-        return byProvider.sorted { $0.key.rawValue < $1.key.rawValue }
+        let hasMatch = !(appModel.visibleCodebaseFiles[codebase.url.path] ?? [:]).isEmpty
+        return appModel.codebaseBinding(for: codebase.url.path, hasMatch: hasMatch)
     }
 
     var body: some View {
         DisclosureGroup(isExpanded: isExpandedBinding) {
-            if groupedFiles.isEmpty && !appModel.searchQuery.isEmpty {
+            let visibleByProvider = appModel.visibleCodebaseFiles[codebase.url.path] ?? [:]
+            if !appModel.searchQuery.isEmpty && visibleByProvider.isEmpty {
                 Text("0 results")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
@@ -43,8 +29,8 @@ struct CodebaseGroupView: View {
                     .padding(.leading, 16)
                     .padding(.vertical, 2)
             } else {
-                ForEach(groupedFiles, id: \.0) { provider, files in
-                    providerSubGroup(provider: provider, files: files)
+                ForEach(appModel.providers(in: codebase), id: \.self) { provider in
+                    providerSubGroup(provider: provider)
                 }
             }
         } label: {
@@ -69,9 +55,11 @@ struct CodebaseGroupView: View {
         }
     }
 
-    private func providerSubGroup(provider: AIProvider, files: [SkillFile]) -> some View {
-        let rootFiles = files.filter { $0.subdirectory.isEmpty }
-        let allGroups = SubdirectoryGroup.groups(from: codebase.files.filter { $0.provider == provider })
+    private func providerSubGroup(provider: AIProvider) -> some View {
+        let allProviderFiles = codebase.files.filter { $0.provider == provider }
+        let visibleRootFiles = (appModel.visibleCodebaseFiles[codebase.url.path]?[provider] ?? [])
+            .filter { $0.subdirectory.isEmpty }
+        let allGroups = SubdirectoryGroup.groups(from: allProviderFiles)
         let visibleGroups = appModel.searchQuery.isEmpty
             ? allGroups
             : allGroups.filter { group in
@@ -84,7 +72,7 @@ struct CodebaseGroupView: View {
                 .foregroundStyle(.tertiary)
                 .padding(.leading, 20)
                 .padding(.top, 4)
-            ForEach(rootFiles) { file in
+            ForEach(visibleRootFiles) { file in
                 FileRowView(file: file)
                     .padding(.leading, 8)
             }

@@ -10,37 +10,23 @@ struct ProviderGroupView: View {
     @Environment(AppModel.self) private var appModel
 
     private var isExpandedBinding: Binding<Bool> {
-        appModel.providerBinding(for: provider, hasMatch: hasSearchMatch)
-    }
-
-    private var hasSearchMatch: Bool {
-        files.contains { appModel.matchingFileIDs.contains($0.id) }
-    }
-
-    private var visibleFiles: [SkillFile] {
-        guard !appModel.searchQuery.isEmpty else { return files }
-        return files.filter { appModel.matchingFileIDs.contains($0.id) }
+        appModel.providerBinding(for: provider, hasMatch: !files.isEmpty)
     }
 
     var body: some View {
         DisclosureGroup(isExpanded: isExpandedBinding) {
-            if files.isEmpty {
+            if files.isEmpty && appModel.searchQuery.isEmpty {
                 noFilesRow
-            } else if visibleFiles.isEmpty && !appModel.searchQuery.isEmpty {
+            } else if files.isEmpty && !appModel.searchQuery.isEmpty {
                 zeroResultsRow
             } else {
-                let rootFiles = visibleFiles.filter { $0.subdirectory.isEmpty }
+                let rootFiles = files.filter { $0.subdirectory.isEmpty }
                 let allGroups = SubdirectoryGroup.groups(from: files)
-                let visibleGroups = appModel.searchQuery.isEmpty
-                    ? allGroups
-                    : allGroups.filter { group in
-                        group.files.contains { appModel.matchingFileIDs.contains($0.id) }
-                    }
 
                 ForEach(rootFiles) { file in
                     FileRowView(file: file)
                 }
-                ForEach(visibleGroups) { group in
+                ForEach(allGroups) { group in
                     SubdirectoryGroupView(group: group)
                 }
             }

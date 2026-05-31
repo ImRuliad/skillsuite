@@ -7,22 +7,13 @@ struct SubdirectoryGroupView: View {
     private var isExpandedBinding: Binding<Bool> {
         appModel.subdirectoryBinding(
             for: group.absoluteParentPath,
-            hasMatch: hasSearchMatch
+            hasMatch: group.files.contains { appModel.matchingFileIDs.contains($0.id) }
         )
-    }
-
-    private var hasSearchMatch: Bool {
-        group.files.contains { appModel.matchingFileIDs.contains($0.id) }
-    }
-
-    private var visibleFiles: [SkillFile] {
-        guard !appModel.searchQuery.isEmpty else { return group.files }
-        return group.files.filter { appModel.matchingFileIDs.contains($0.id) }
     }
 
     var body: some View {
         DisclosureGroup(isExpanded: isExpandedBinding) {
-            ForEach(visibleFiles) { file in
+            ForEach(group.files) { file in
                 FileRowView(file: file)
             }
         } label: {
