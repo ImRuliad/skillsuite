@@ -6,6 +6,7 @@ import Foundation
 /// Unit tests cover the public interface contract and lifecycle.
 /// The integration test verifies the callback fires on an actual file write.
 @Suite("FileWatcher")
+@MainActor
 struct FileWatcherTests {
 
     // MARK: - Lifecycle
@@ -38,6 +39,17 @@ struct FileWatcherTests {
         // Starting again must stop the previous stream without crashing
         watcher.start(paths: [NSTemporaryDirectory()])
         watcher.stop()
+    }
+
+    @Test("start stop start stop leaves stream nil")
+    func startStopStartStopLeavesStreamNil() {
+        let watcher = FileWatcher()
+        watcher.start(paths: [NSTemporaryDirectory()])
+        watcher.stop()
+        watcher.start(paths: [NSTemporaryDirectory()])
+        watcher.stop()
+
+        #expect(watcher.stream == nil)
     }
 
     @Test("onChange is nil by default")

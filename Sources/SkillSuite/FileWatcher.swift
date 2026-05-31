@@ -10,19 +10,21 @@ import CoreServices
 /// Owned by `AppModel`. Call `start(paths:)` after the initial scan completes.
 /// Call `start(paths:)` again (it stops the existing stream internally) whenever
 /// the watched path list changes (codebase added/removed).
-final class FileWatcher: @unchecked Sendable {
+@MainActor final class FileWatcher {
 
     // MARK: - State
 
-    private var stream: FSEventStreamRef?
+    private(set) var stream: FSEventStreamRef?
+    private var isStarted = false
 
     /// Called on the main thread when any watched path changes.
-    var onChange: (() -> Void)?
+    var onChange: (@MainActor () -> Void)?
 
     // MARK: - Public Interface
 
     func start(paths: [String]) {
         stop() // always tear down existing stream first
+        isStarted = false
         guard !paths.isEmpty else { return }
 
         var context = FSEventStreamContext(
@@ -36,7 +38,9 @@ final class FileWatcher: @unchecked Sendable {
         let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
             guard let info else { return }
             let watcher = Unmanaged<FileWatcher>.fromOpaque(info).takeUnretainedValue()
-            watcher.onChange?()
+            Task { @MainActor in
+                watcher.onChange?()
+            }
         }
 
         stream = FSEventStreamCreate(
@@ -52,15 +56,26 @@ final class FileWatcher: @unchecked Sendable {
         guard let stream else { return }
         FSEventStreamSetDispatchQueue(stream, .main)
         FSEventStreamStart(stream)
+        isStarted = true
     }
 
     func stop() {
         guard let stream else { return }
-        FSEventStreamStop(stream)
+        if isStarted {
+            FSEventStreamStop(stream)
+            isStarted = false
+        }
         FSEventStreamInvalidate(stream)
         FSEventStreamRelease(stream)
         self.stream = nil
     }
 
-    deinit { stop() }
+    isolated deinit {
+        guard let stream else { return }
+        if isStarted {
+            FSEventStreamStop(stream)
+        }
+        FSEventStreamInvalidate(stream)
+        FSEventStreamRelease(stream)
+    }
 }
