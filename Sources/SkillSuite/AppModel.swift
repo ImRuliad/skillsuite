@@ -45,6 +45,12 @@ final class AppModel {
     var searchQuery: String = ""
     var matchingFileIDs: Set<String> = []
 
+    /// Pre-filtered global files for the current search query. Refreshed by `refreshVisibleFiles()`.
+    var visibleGlobalFiles: [AIProvider: [SkillFile]] = [:]
+
+    /// Pre-filtered codebase files for the current search query, keyed by `url.path` then provider.
+    var visibleCodebaseFiles: [String: [AIProvider: [SkillFile]]] = [:]
+
     // MARK: - Services (private)
 
     private let globalScanner = GlobalScannerService()
@@ -160,10 +166,30 @@ final class AppModel {
         let all = globalFiles.values.flatMap { $0 } + codebases.flatMap { $0.files }
         index.build(from: all)
         updateMatches()
+        refreshVisibleFiles()
     }
 
     func updateMatches() {
         matchingFileIDs = Set(index.search(query: searchQuery).map { $0.fileID })
+        refreshVisibleFiles()
+    }
+
+    func providers(in codebase: Codebase) -> [AIProvider] {
+        AIProvider.allCases.filter { provider in codebase.files.contains { $0.provider == provider } }
+    }
+
+    private func refreshVisibleFiles() {
+        let ids = matchingFileIDs
+        let empty = searchQuery.isEmpty
+        visibleGlobalFiles = Dictionary(
+            grouping: globalFiles.values.flatMap { $0 }.filter { empty || ids.contains($0.id) }
+        ) { $0.provider }
+        var byCodebase: [String: [AIProvider: [SkillFile]]] = [:]
+        for cb in codebases {
+            let visible = cb.files.filter { empty || ids.contains($0.id) }
+            byCodebase[cb.url.path] = Dictionary(grouping: visible) { $0.provider }
+        }
+        visibleCodebaseFiles = byCodebase
     }
 
     func providerBinding(for provider: AIProvider, hasMatch: Bool) -> Binding<Bool> {

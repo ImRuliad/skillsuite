@@ -39,7 +39,7 @@ struct SidebarView: View {
                 ForEach(AIProvider.allCases) { provider in
                     ProviderGroupView(
                         provider: provider,
-                        files: appModel.globalFiles[provider] ?? []
+                        files: appModel.visibleGlobalFiles[provider] ?? []
                     )
                 }
             }
