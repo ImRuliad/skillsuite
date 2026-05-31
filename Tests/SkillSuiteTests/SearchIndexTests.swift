@@ -21,6 +21,14 @@ struct SearchIndexTests {
         )
     }
 
+    private func resultIDs(_ results: [SearchResult]) -> Set<String> {
+        Set(results.map { $0.fileID })
+    }
+
+    private func resultScore(for fileID: String, in results: [SearchResult]) -> Int? {
+        results.first { $0.fileID == fileID }?.score
+    }
+
     // MARK: - build()
 
     @Test("Empty build yields empty search results")
@@ -52,7 +60,8 @@ struct SearchIndexTests {
         index.build(from: files)
 
         let result = index.search(query: "")
-        #expect(result == Set(["/tmp/alpha.md", "/tmp/beta.md"]))
+        #expect(resultIDs(result) == Set(["/tmp/alpha.md", "/tmp/beta.md"]))
+        #expect(result.allSatisfy { $0.score == 0 })
     }
 
     @Test("Empty query on empty index returns empty set")
@@ -70,7 +79,7 @@ struct SearchIndexTests {
         let file = makeFile(name: "my-claude-rules.md", contents: "", path: "/tmp/rules.md")
         index.build(from: [file])
 
-        #expect(index.search(query: "claude").contains("/tmp/rules.md"))
+        #expect(resultIDs(index.search(query: "claude")).contains("/tmp/rules.md"))
     }
 
     @Test("Matches by file contents substring")
@@ -79,7 +88,42 @@ struct SearchIndexTests {
         let file = makeFile(name: "notes.md", contents: "Always use SOLID principles", path: "/tmp/notes.md")
         index.build(from: [file])
 
-        #expect(index.search(query: "solid").contains("/tmp/notes.md"))
+        #expect(resultIDs(index.search(query: "solid")).contains("/tmp/notes.md"))
+    }
+
+    @Test("Filename-only match scores 10")
+    func filenameOnlyMatchScoresTen() {
+        var index = SearchIndex()
+        let file = makeFile(name: "claude-rules.md", contents: "unrelated", path: "/tmp/name.md")
+        index.build(from: [file])
+
+        let result = index.search(query: "rules")
+        #expect(resultScore(for: "/tmp/name.md", in: result) == 10)
+    }
+
+    @Test("Content-only match scores 1")
+    func contentOnlyMatchScoresOne() {
+        var index = SearchIndex()
+        let file = makeFile(name: "notes.md", contents: "Always use SOLID principles", path: "/tmp/content.md")
+        index.build(from: [file])
+
+        let result = index.search(query: "solid")
+        #expect(resultScore(for: "/tmp/content.md", in: result) == 1)
+    }
+
+    @Test("Name and content match scores 11 and ranks first")
+    func nameAndContentMatchScoresElevenAndRanksFirst() {
+        var index = SearchIndex()
+        let files = [
+            makeFile(name: "swift-rules.md", contents: "swift guidance", path: "/tmp/both.md"),
+            makeFile(name: "notes.md", contents: "swift guidance", path: "/tmp/content.md"),
+        ]
+        index.build(from: files)
+
+        let result = index.search(query: "swift")
+        #expect(resultScore(for: "/tmp/both.md", in: result) == 11)
+        #expect(resultScore(for: "/tmp/content.md", in: result) == 1)
+        #expect(result.first?.fileID == "/tmp/both.md")
     }
 
     @Test("Search is case-insensitive for query")
@@ -123,9 +167,10 @@ struct SearchIndexTests {
         index.build(from: files)
 
         let result = index.search(query: "swift")
-        #expect(result.contains("/tmp/one.md"))
-        #expect(result.contains("/tmp/swift.md"))
-        #expect(!result.contains("/tmp/other.md"))
+        let ids = resultIDs(result)
+        #expect(ids.contains("/tmp/one.md"))
+        #expect(ids.contains("/tmp/swift.md"))
+        #expect(!ids.contains("/tmp/other.md"))
     }
 
     @Test("File ID used in results equals SkillFile path")
@@ -136,7 +181,7 @@ struct SearchIndexTests {
         index.build(from: [file])
 
         let result = index.search(query: "match me")
-        #expect(result.contains(path))
+        #expect(resultIDs(result).contains(path))
     }
 
     @Test("Files from different providers are all indexed")
