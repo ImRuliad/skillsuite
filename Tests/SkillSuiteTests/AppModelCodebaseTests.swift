@@ -191,4 +191,27 @@ struct AppModelCodebaseTests {
         let model = freshModel()
         #expect(model.codebases.isEmpty)
     }
+
+    // MARK: - Scan warnings
+
+    @Test("detectScanWarnings warns when a provider directory exists but scans empty")
+    func detectScanWarningsExistingEmptyProviderDir() {
+        let model = freshModel()
+        let claudePath = "\(FileManager.default.homeDirectoryForCurrentUser.path)/.claude"
+
+        model.detectScanWarnings(global: [:], existingDirs: [claudePath])
+
+        #expect(model.scanWarnings.count == 1)
+        #expect(model.scanWarnings[0].contains("Claude"))
+        #expect(model.scanWarnings[0].contains(claudePath))
+    }
+
+    @Test("detectScanWarnings stays empty when no provider directories exist")
+    func detectScanWarningsNoExistingProviderDirs() {
+        let model = freshModel()
+
+        model.detectScanWarnings(global: [:], existingDirs: [])
+
+        #expect(model.scanWarnings.isEmpty)
+    }
 }

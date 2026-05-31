@@ -18,6 +18,9 @@ final class AppModel {
     /// User-registered codebase folders with their scanned files.
     var codebases: [Codebase] = []
 
+    /// Warnings for provider directories that exist but produced no global files.
+    var scanWarnings: [String] = []
+
     // MARK: - UI State
 
     var selectedFile: SkillFile? = nil
@@ -77,6 +80,7 @@ final class AppModel {
         globalFiles = newGlobal
         mergeCodebaseScanResults(newCodebases)
         rebuildIndex()
+        detectScanWarnings(global: newGlobal)
         isLoading = false
         startWatching()
     }
@@ -104,6 +108,7 @@ final class AppModel {
 
         recentlyAddedFilePaths = added
         rebuildIndex()
+        detectScanWarnings(global: updatedGlobal)
 
         // Clear highlight after 3 seconds
         let pathsToClear = added
@@ -188,6 +193,33 @@ final class AppModel {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let globalPaths = [".claude", ".copilot", ".codex", ".gemini"].map { "\(home)/\($0)" }
         return globalPaths + codebases.map { $0.url.path }
+    }
+
+    func detectScanWarnings(
+        global: [AIProvider: [SkillFile]],
+        existingDirs: Set<String>? = nil
+    ) {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let knownDirs: [(AIProvider, String)] = [
+            (.claude, "\(home)/.claude"),
+            (.copilot, "\(home)/.copilot"),
+            (.codex, "\(home)/.codex"),
+            (.gemini, "\(home)/.gemini"),
+        ]
+
+        let existing = existingDirs ?? Set(
+            knownDirs
+                .map { $0.1 }
+                .filter { FileManager.default.fileExists(atPath: $0) }
+        )
+
+        scanWarnings = knownDirs.compactMap { provider, path in
+            guard existing.contains(path),
+                  (global[provider] ?? []).isEmpty
+            else { return nil }
+
+            return "\(provider.rawValue) directory exists at \(path), but no skill files were found."
+        }
     }
 
     // MARK: - Persistence
