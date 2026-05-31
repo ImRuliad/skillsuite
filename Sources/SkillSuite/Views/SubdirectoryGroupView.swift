@@ -5,18 +5,14 @@ struct SubdirectoryGroupView: View {
     @Environment(AppModel.self) private var appModel
 
     private var isExpandedBinding: Binding<Bool> {
-        Binding(
-            get: {
-                if !appModel.searchQuery.isEmpty {
-                    return group.files.contains { appModel.matchingFileIDs.contains($0.id) }
-                }
-                return appModel.subdirectoryExpanded[group.absoluteParentPath] ?? false
-            },
-            set: { isExpanded in
-                guard appModel.searchQuery.isEmpty else { return }
-                appModel.subdirectoryExpanded[group.absoluteParentPath] = isExpanded
-            }
+        appModel.subdirectoryBinding(
+            for: group.absoluteParentPath,
+            hasMatch: hasSearchMatch
         )
+    }
+
+    private var hasSearchMatch: Bool {
+        group.files.contains { appModel.matchingFileIDs.contains($0.id) }
     }
 
     private var visibleFiles: [SkillFile] {

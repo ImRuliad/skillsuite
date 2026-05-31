@@ -9,10 +9,11 @@ struct CodebaseGroupView: View {
     @Environment(AppModel.self) private var appModel
 
     private var isExpandedBinding: Binding<Bool> {
-        Binding(
-            get: { appModel.codebaseExpanded[codebase.url.path] ?? false },
-            set: { appModel.codebaseExpanded[codebase.url.path] = $0 }
-        )
+        appModel.codebaseBinding(for: codebase.url.path, hasMatch: hasSearchMatch)
+    }
+
+    private var hasSearchMatch: Bool {
+        codebase.files.contains { appModel.matchingFileIDs.contains($0.id) }
     }
 
     private var groupedFiles: [(AIProvider, [SkillFile])] {

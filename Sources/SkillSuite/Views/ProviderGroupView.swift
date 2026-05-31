@@ -10,10 +10,11 @@ struct ProviderGroupView: View {
     @Environment(AppModel.self) private var appModel
 
     private var isExpandedBinding: Binding<Bool> {
-        Binding(
-            get: { appModel.providerExpanded[provider] ?? false },
-            set: { appModel.providerExpanded[provider] = $0 }
-        )
+        appModel.providerBinding(for: provider, hasMatch: hasSearchMatch)
+    }
+
+    private var hasSearchMatch: Bool {
+        files.contains { appModel.matchingFileIDs.contains($0.id) }
     }
 
     private var visibleFiles: [SkillFile] {
